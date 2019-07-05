@@ -59,8 +59,8 @@
 #include "network.h"
 
 
-typedef int bpf_int32; 
-typedef unsigned int bpf_u_int32; 
+typedef int bpf_int32;
+typedef unsigned int bpf_u_int32;
 
 /*
  * The instruction data structure.
@@ -80,12 +80,18 @@ struct bpf_program {
     struct bpf_insn	*bf_insns;
 };
 
-typedef struct pcap_if	pcap_if_t; 
+typedef struct pcap_if	pcap_if_t;
 
+/* We only need to define this if the OS libraries don't,
+ * but if they do, __timeval_defined should be defined by OS.
+ */
+#ifndef __timeval_defined
+#define __timeval_defined 1
 typedef struct timeval {
     long		tv_sec;
     long		tv_usec;
 } timeval;
+#endif
 
 #define PCAP_ERRBUF_SIZE	256
 
@@ -96,11 +102,11 @@ struct pcap_pkthdr {
 };
 
 struct pcap_if {
-    struct pcap_if *next; 
-    char *name;     
-    char *description;  
-    void *addresses; 
-    unsigned int flags;        
+    struct pcap_if *next;
+    char *name;
+    char *description;
+    void *addresses;
+    unsigned int flags;
 };
 
 
@@ -199,7 +205,7 @@ poll_thread(void *arg)
 		if ((mac_cmp32[0] != mac_cmp32[1]) ||
 		    (mac_cmp16[0] != mac_cmp16[1])) {
 
-			poll_card->rx(poll_card->priv, data, h.caplen); 
+			poll_card->rx(poll_card->priv, data, h.caplen);
 		} else {
 			/* Mark as invalid packet. */
 			data = NULL;
