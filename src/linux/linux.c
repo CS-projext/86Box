@@ -17,6 +17,7 @@
 #define GLOBAL
 #include "../plat.h"
 
+#include "linux.h"
 #include "linux_sdl.h"
 
 /* Platform public data. */

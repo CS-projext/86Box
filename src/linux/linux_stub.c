@@ -18,7 +18,6 @@ int ui_msgbox(int type, void* arg) {
 joystick_t joystick_state[MAX_JOYSTICKS];
 void joystick_init(void) { return; }
 void joystick_process(void) { return; }
-void mouse_poll(void) { return; }
 void plat_cdrom_ui_update(uint8_t a, uint8_t b) { return; }
 wchar_t* plat_get_string(int a) { return NULL; }
 void plat_midi_close(void) { return; }
@@ -27,13 +26,11 @@ void plat_midi_init(void) { return; }
 void plat_midi_play_msg(uint8_t* a) { return; }
 void plat_midi_play_sysex(uint8_t* a, unsigned int b) { return; }
 int plat_midi_write(uint8_t a) { return 0; }
-void plat_mouse_capture(int a) { return; }
 void plat_pause(int a) { return; }
 void ui_sb_bugui(char* a) { return; }
 void ui_sb_set_ready(int a) { return; }
 void ui_sb_update_icon(int a, int b) { return; }
 void ui_sb_update_icon_state(int a, int b) { return; }
 void ui_sb_update_panes(void) { return; }
-wchar_t* ui_window_title(wchar_t* a) { return NULL; }
 void zip_eject(uint8_t a) { return; }
 void zip_reload(uint8_t a) { return; }
