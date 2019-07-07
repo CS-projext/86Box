@@ -87,6 +87,9 @@ int main(int argc, const char* argv[]) {
   do_start();
   while(!quited) {
     sdl_eventpump();
+#ifdef BLIT_ON_MAIN_THREAD
+	video_blit_now();
+#endif
   }
   do_stop();
 

@@ -243,16 +243,26 @@ static struct {
     int		busy;
     int		buffer_in_use;
 
+#ifndef BLIT_ON_MAIN_THREAD
     thread_t	*blit_thread;
     event_t	*wake_blit_thread;
     event_t	*blit_complete;
     event_t	*buffer_not_in_use;
+#endif
 }		blit_data;
 
 
 static void (*blit_func)(int x, int y, int y1, int y2, int w, int h);
 
-
+#ifdef BLIT_ON_MAIN_THREAD
+void video_blit_now(void) {
+	if (blit_func)
+		blit_func(blit_data.x, blit_data.y,
+			  blit_data.y1, blit_data.y2,
+			  blit_data.w, blit_data.h);
+	blit_data.busy = 0;
+}
+#else
 static
 void blit_thread(void *param)
 {
@@ -269,6 +279,10 @@ void blit_thread(void *param)
 	thread_set_event(blit_data.blit_complete);
     }
 }
+#endif
+
+
+
 
 
 void
@@ -283,25 +297,31 @@ video_blit_complete(void)
 {
     blit_data.buffer_in_use = 0;
 
+#ifndef BLIT_ON_MAIN_THREAD
     thread_set_event(blit_data.buffer_not_in_use);
+#endif
 }
 
 
 void
 video_wait_for_blit(void)
 {
+#ifndef BLIT_ON_MAIN_THREAD
     while (blit_data.busy)
 	thread_wait_event(blit_data.blit_complete, -1);
     thread_reset_event(blit_data.blit_complete);
+#endif
 }
 
 
 void
 video_wait_for_buffer(void)
 {
+#ifndef BLIT_ON_MAIN_THREAD
     while (blit_data.buffer_in_use)
 	thread_wait_event(blit_data.buffer_not_in_use, -1);
     thread_reset_event(blit_data.buffer_not_in_use);
+#endif
 }
 
 
@@ -321,7 +341,9 @@ video_blit_memtoscreen(int x, int y, int y1, int y2, int w, int h)
     blit_data.w = w;
     blit_data.h = h;
 
+#ifndef BLIT_ON_MAIN_THREAD
     thread_set_event(blit_data.wake_blit_thread);
+#endif
 }
 
 
@@ -680,20 +702,24 @@ video_init(void)
     for (c = 0; c < 65536; c++)
 	video_16to32[c] = calc_16to32(c);
 
+#ifndef BLIT_ON_MAIN_THREAD
     blit_data.wake_blit_thread = thread_create_event();
     blit_data.blit_complete = thread_create_event();
     blit_data.buffer_not_in_use = thread_create_event();
     blit_data.blit_thread = thread_create(blit_thread, NULL);
+#endif
 }
 
 
 void
 video_close(void)
 {
+#ifndef BLIT_ON_MAIN_THREAD
     thread_kill(blit_data.blit_thread);
     thread_destroy_event(blit_data.buffer_not_in_use);
     thread_destroy_event(blit_data.blit_complete);
     thread_destroy_event(blit_data.wake_blit_thread);
+#endif
 
     free(video_6to8);
     free(video_15to32);

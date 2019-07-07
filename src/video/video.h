@@ -147,7 +147,9 @@ extern int 	video_is_ega_vga(void);
 extern void	video_inform(int type, const video_timings_t *ptr);
 extern int	video_get_type(void);
 
-
+#ifdef BLIT_ON_MAIN_THREAD
+extern void video_blit_now(void);
+#endif
 extern void	video_setblit(void(*blit)(int,int,int,int,int,int));
 extern void	video_blend(int x, int y);
 extern void	video_blit_memtoscreen_8(int x, int y, int y1, int y2, int w, int h);
