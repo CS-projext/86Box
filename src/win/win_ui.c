@@ -51,7 +51,8 @@ HWND		hwndMain,		/* application main window */
 HMENU		menuMain;		/* application main menu */
 HICON		hIcon[256];		/* icon data loaded from resources */
 RECT		oldclip;		/* mouse rect */
-int        sbar_height = 23;     /* statusbar height */
+int		sbar_height = 23;     /* statusbar height */
+int		minimized = 0;
 int		infocus = 1;
 int		rctrl_is_lalt = 0;
 int		user_resize = 0;
@@ -274,11 +275,10 @@ MainWindowProcedure(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
     HMENU hmenu;
 
-    int sb_borders[3];
-    RECT rect, rc;
+    int i, sb_borders[3];
+    RECT rect;
 
     int temp_x, temp_y;
-	int non_client_width, non_client_height;
 
     switch (message) {
 	case WM_CREATE:
@@ -297,7 +297,9 @@ MainWindowProcedure(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 				break;
 
 			case IDM_ACTION_HRESET:
-				pc_reset(1);
+				i = ui_msgbox(MBX_QUESTION_YN, (wchar_t *)IDS_2121);
+				if (i == 0)
+					pc_reset(1);
 				break;
 
 			case IDM_ACTION_RESET_CAD:
@@ -305,7 +307,12 @@ MainWindowProcedure(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 				break;
 
 			case IDM_ACTION_EXIT:
-				PostQuitMessage(0);
+				i = ui_msgbox(MBX_QUESTION_YN, (wchar_t *)IDS_2122);
+				if (i == 0) {
+					UnhookWindowsHookEx(hKeyboardHook);
+					KillTimer(hwnd, TIMER_1SEC);
+					PostQuitMessage(0);
+				}
 				break;
 
 			case IDM_ACTION_CTRL_ALT_ESC:
@@ -349,15 +356,23 @@ MainWindowProcedure(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 				SendMessage(hwndSBAR, SB_GETBORDERS, 0, (LPARAM) sb_borders);
 
 				GetWindowRect(hwnd, &rect);
-				GetClientRect(hwnd, &rc);
-				non_client_width = (rect.right-rect.left) - (rc.right-rc.left);
-				non_client_height = (rect.bottom-rect.top) - (rc.bottom-rc.top);
 
 				/* Main Window. */
-				MoveWindow(hwnd, rect.left, rect.top,
-					unscaled_size_x + non_client_width,
-					unscaled_size_y + non_client_height + sbar_height,
-					TRUE);
+				if (GetSystemMetrics(SM_CXPADDEDBORDER) == 0) {
+					/* For platforms that subsystem version < 6.0 (default on mingw/msys2) */
+					/* In this case, border sizes are different between resizable and non-resizable window */
+					MoveWindow(hwnd, rect.left, rect.top,
+						unscaled_size_x + (GetSystemMetrics(vid_resize ? SM_CXSIZEFRAME : SM_CXFIXEDFRAME) * 2),
+						unscaled_size_y + (GetSystemMetrics(vid_resize ? SM_CYSIZEFRAME : SM_CYFIXEDFRAME) * 2) + (GetSystemMetrics(SM_CYBORDER) + GetSystemMetrics(SM_CYMENUSIZE)) + GetSystemMetrics(SM_CYCAPTION) + sbar_height,
+						TRUE);
+				} else {
+					/* For platforms that subsystem version >= 6.0 (default on llvm-mingw, mainly for Windows/ARM) */
+					/* In this case, border sizes are the same between resizable and non-resizable window */
+					MoveWindow(hwnd, rect.left, rect.top,
+						unscaled_size_x + ((GetSystemMetrics(SM_CXFRAME) + GetSystemMetrics(SM_CXPADDEDBORDER)) * 2),
+						unscaled_size_y + ((GetSystemMetrics(SM_CYFRAME) + GetSystemMetrics(SM_CXPADDEDBORDER)) * 2) + (GetSystemMetrics(SM_CYBORDER) + GetSystemMetrics(SM_CYMENUSIZE)) + GetSystemMetrics(SM_CYCAPTION) + sbar_height,
+						TRUE);
+				}
 
 				/* Render window. */
 				MoveWindow(hwndRender, 0, 0, unscaled_size_x, unscaled_size_y, TRUE);
@@ -422,9 +437,8 @@ MainWindowProcedure(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 
 			case IDM_VID_FS_FULL:
 			case IDM_VID_FS_43:
-			case IDM_VID_FS_SQ:                                
+			case IDM_VID_FS_KEEPRATIO:                              
 			case IDM_VID_FS_INT:
-			case IDM_VID_FS_KEEPRATIO:
 				CheckMenuItem(hmenu, IDM_VID_FS_FULL+video_fullscreen_scale, MF_UNCHECKED);
 				video_fullscreen_scale = LOWORD(wParam) - IDM_VID_FS_FULL;
 				CheckMenuItem(hmenu, IDM_VID_FS_FULL+video_fullscreen_scale, MF_CHECKED);
@@ -563,7 +577,18 @@ MainWindowProcedure(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 		SendMessage(hwndSBAR, SB_GETBORDERS, 0, (LPARAM) sb_borders);
 
 		temp_x = (lParam & 0xFFFF);
-		temp_y = (lParam >> 16) - sbar_height;
+		temp_y = (lParam >> 16);
+
+		if ((temp_x <= 0) || (temp_y <= 0)) {
+			minimized = 1;
+			break;
+		} else if (minimized == 1) {
+			minimized = 0;
+			video_force_resize_set(1);
+		}
+
+		plat_vidapi_enable(0);
+		temp_y -= sbar_height;
 		if (temp_x < 1)
 			temp_x = 1;
 		if (temp_y < 1)
@@ -600,6 +625,7 @@ MainWindowProcedure(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 			window_h = rect.bottom - rect.top;
 			save_window_pos = 1;
 		}
+		plat_vidapi_enable(1);
 
 		config_save();
 		break;
@@ -616,9 +642,10 @@ MainWindowProcedure(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 		break;
                 
 	case WM_TIMER:
-		if (wParam == TIMER_1SEC) {
+		if (wParam == TIMER_1SEC)
 			pc_onesec();
-		}
+		else if ((wParam >= 0x8000) && (wParam <= 0x80ff))
+			ui_sb_timer_callback(wParam & 0xff);
 		break;
 		
 	case WM_RESETD3D:
@@ -641,6 +668,15 @@ MainWindowProcedure(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 	case WM_SYSKEYUP:
 		return(0);
 
+	case WM_CLOSE:
+		i = ui_msgbox(MBX_QUESTION_YN, (wchar_t *)IDS_2122);
+		if (i == 0) {
+			UnhookWindowsHookEx(hKeyboardHook);
+			KillTimer(hwnd, TIMER_1SEC);
+			PostQuitMessage(0);
+		}
+		break;
+
 	case WM_DESTROY:
 		UnhookWindowsHookEx(hKeyboardHook);
 		KillTimer(hwnd, TIMER_1SEC);
@@ -661,6 +697,8 @@ MainWindowProcedure(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 		break;
 
 	case WM_SHUTDOWN:
+		UnhookWindowsHookEx(hKeyboardHook);
+		KillTimer(hwnd, TIMER_1SEC);
 		PostQuitMessage(0);
 		break;
 
@@ -1016,9 +1054,7 @@ void
 plat_resize(int x, int y)
 {
     int sb_borders[3];
-    RECT r, rc;
-	int non_client_width;
-	int non_client_height;
+    RECT r;
 
     /* First, see if we should resize the UI window. */
     if (!vid_resize) {
@@ -1027,14 +1063,22 @@ plat_resize(int x, int y)
 	SendMessage(hwndSBAR, SB_GETBORDERS, 0, (LPARAM) sb_borders);
 
 	GetWindowRect(hwndMain, &r);
-	GetClientRect(hwndMain, &rc);
-	non_client_width = (r.right-r.left) - (rc.right-rc.left);
-	non_client_height = (r.bottom-r.top) - (rc.bottom-rc.top);
 
-	MoveWindow(hwndMain, r.left, r.top,
-		   x + non_client_width,
-		   y + non_client_height + sbar_height,
-		   TRUE);
+	if (GetSystemMetrics(SM_CXPADDEDBORDER) == 0) {
+		/* For platforms that subsystem version < 6.0 (gcc on mingw/msys2) */
+		/* In this case, border sizes are different between resizable and non-resizable window */
+		MoveWindow(hwndMain, r.left, r.top,
+			x + (GetSystemMetrics(vid_resize ? SM_CXSIZEFRAME : SM_CXFIXEDFRAME) * 2),
+			y + (GetSystemMetrics(vid_resize ? SM_CYSIZEFRAME : SM_CYFIXEDFRAME) * 2) + (GetSystemMetrics(SM_CYBORDER) + GetSystemMetrics(SM_CYMENUSIZE)) + GetSystemMetrics(SM_CYCAPTION) + sbar_height,
+			TRUE);
+	} else {
+		/* For platforms that subsystem version >= 6.0 (clang/llvm on llvm-mingw, mainly for Windows/ARM) */
+		/* In this case, border sizes are the same between resizable and non-resizable window */
+		MoveWindow(hwndMain, r.left, r.top,
+			x + ((GetSystemMetrics(SM_CXFRAME) + GetSystemMetrics(SM_CXPADDEDBORDER)) * 2),
+			y + ((GetSystemMetrics(SM_CYFRAME) + GetSystemMetrics(SM_CXPADDEDBORDER)) * 2) + (GetSystemMetrics(SM_CYBORDER) + GetSystemMetrics(SM_CYMENUSIZE)) + GetSystemMetrics(SM_CYCAPTION) + sbar_height,
+			TRUE);
+	}
 
 	MoveWindow(hwndRender, 0, 0, x, y, TRUE);
 	GetWindowRect(hwndRender, &r);

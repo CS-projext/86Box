@@ -138,7 +138,7 @@ endif
 #		Nothing should need changing from here on..		#
 #########################################################################
 VPATH		:= $(EXPATH) . cpu \
-		   cdrom disk floppy game machine \
+		   cdrom chipset disk floppy game machine \
 		   printer \
 		   sound \
 		    sound/munt sound/munt/c_interface sound/munt/sha1 \
@@ -322,42 +322,45 @@ CXXFLAGS	:= $(CFLAGS)
 #########################################################################
 #		Create the (final) list of objects to build.		#
 #########################################################################
-MAINOBJ		:= pc.o config.o random.o timer.o io.o dma.o nmi.o pic.o \
-		   pit.o ppi.o pci.o mca.o mcr.o mem.o memregs.o rom.o \
-		   device.o nvr.o nvr_at.o nvr_ps2.o $(VNCOBJ)
+MAINOBJ		:= pc.o config.o random.o timer.o io.o apm.o dma.o nmi.o \
+		   pic.o pit.o port_92.o ppi.o pci.o mca.o mcr.o mem.o \
+		   rom.o device.o nvr.o nvr_at.o nvr_ps2.o $(VNCOBJ) $(RDPOBJ)
 
-INTELOBJ	:= intel.o \
-		    intel_flash.o \
+INTELOBJ	:= intel_flash.o \
 		    intel_sio.o intel_piix.o
 
 CPUOBJ		:= cpu.o cpu_table.o \
-		    808x.o 386.o 386_dynarec.o \
+		    808x.o 386.o \
+		    386_dynarec.o \
 		    x86seg.o x87.o \
 		    $(DYNARECOBJ)
+
+CHIPSETOBJ	:= acc2168.o acer_m3a.o ali1429.o headland.o \
+		    intel_4x0.o neat.o opti495.o scat.o \
+		    sis_85c471.o sis_85c496.o \
+		    wd76c10.o
 
 MCHOBJ		:= machine.o machine_table.o \
 		    m_xt.o m_xt_compaq.o \
 		    m_xt_t1000.o m_xt_t1000_vid.o \
-		    m_xt_xi8088.o \
-		    m_xt_zenith.o \
+		    m_xt_xi8088.o m_xt_zenith.o \
 		    m_pcjr.o \
-		    m_amstrad.o \
-		    m_europc.o \
+		    m_amstrad.o m_europc.o \
 		    m_olivetti_m24.o m_tandy.o \
-		    m_at.o \
-		    m_at_ali1429.o m_at_commodore.o \
-		    m_at_neat.o m_at_headland.o \
+		    m_at.o m_at_commodore.o \
 		    m_at_t3100e.o m_at_t3100e_vid.o \
 		    m_ps1.o m_ps1_hdc.o \
 		    m_ps2_isa.o m_ps2_mca.o \
-		    m_at_opti495.o m_at_scat.o \
-		    m_at_compaq.o m_at_wd76c10.o \
-		    m_at_sis_85c471.o m_at_sis_85c496.o \
-		    m_at_4x0.o
+		    m_at_compaq.o \
+		    m_at_286_386sx.o m_at_386dx_486.o \
+		    m_at_socket4_5.o m_at_socket7_s7.o
 
-DEVOBJ		:= bugger.o isamem.o isartc.o lpt.o $(SERIAL) \
-		    sio_fdc37c66x.o sio_fdc37c669.o sio_fdc37c93x.o \
-		    sio_pc87306.o sio_w83877f.o sio_um8669f.o \
+DEVOBJ		:= bugger.o ibm_5161.o isamem.o isartc.o lpt.o $(SERIAL) \
+		    sio_acc3221.o \
+		    sio_fdc37c66x.o sio_fdc37c669.o \
+		    sio_fdc37c93x.o \
+		    sio_pc87306.o sio_w83877f.o \
+		    sio_um8669f.o \
 		   keyboard.o \
 		    keyboard_xt.o keyboard_at.o \
 		   gameport.o \
@@ -375,10 +378,11 @@ FDDOBJ		:= fdd.o fdc.o fdi2raw.o \
 HDDOBJ		:= hdd.o \
 		    hdd_image.o hdd_table.o \
 		   hdc.o \
-		    hdc_mfm_xt.o hdc_mfm_at.o \
+		    hdc_st506_xt.o hdc_st506_at.o \
 		    hdc_xta.o \
 		    hdc_esdi_at.o hdc_esdi_mca.o \
-		    hdc_xtide.o hdc_ide.o
+		    hdc_xtide.o hdc_ide.o \
+		    hdc_ide_sff8038i.o
 
 CDROMOBJ	:= cdrom.o \
 		    cdrom_dosbox.o cdrom_image.o
@@ -406,8 +410,8 @@ NETOBJ		:= network.o \
 			net_wd8003.o
 
 PRINTOBJ	:= png.o prt_cpmap.o \
-		    prt_escp.o prt_text.o
-
+		    prt_escp.o prt_text.o			
+			
 SNDOBJ		:= sound.o \
 		    openal.o \
 		    snd_opl.o snd_dbopl.o \
@@ -439,6 +443,7 @@ VIDOBJ		:= video.o \
 		    vid_hercules.o vid_herculesplus.o vid_incolor.o \
 		    vid_colorplus.o \
 		    vid_genius.o \
+		    vid_pgc.o vid_im1024.o \
 		    vid_sigma.o \
 		    vid_wy700.o \
 		    vid_ega.o vid_ega_render.o \
@@ -453,6 +458,7 @@ VIDOBJ		:= video.o \
 		    vid_cl54xx.o \
 		    vid_et4000.o vid_sc1502x_ramdac.o \
 		    vid_et4000w32.o vid_stg_ramdac.o \
+		    vid_ht216.o \
 		    vid_oak_oti.o \
 		    vid_paradise.o \
 		    vid_ti_cf62011.o \
@@ -465,10 +471,10 @@ VIDOBJ		:= video.o \
 
 PLATOBJ		:= linux.o linux_thread.o linux_dynld.o linux_sdl.o linux_stub.o
 
-OBJ		:= $(MAINOBJ) $(INTELOBJ) $(CPUOBJ) $(MCHOBJ) $(DEVOBJ) \
-		   $(FDDOBJ) $(CDROMOBJ) $(ZIPOBJ) $(HDDOBJ) \
+OBJ		:= $(MAINOBJ) $(INTELOBJ) $(CPUOBJ) $(CHIPSETOBJ) $(MCHOBJ) \
+		   $(DEVOBJ) $(FDDOBJ) $(CDROMOBJ) $(ZIPOBJ) $(HDDOBJ) \
 		   $(USBOBJ) $(NETOBJ) $(PRINTOBJ) $(SCSIOBJ) $(SNDOBJ) $(VIDOBJ) \
-		   $(PLATOBJ) $(UIOBJ) $(FSYNTHOBJ) $(MUNTOBJ) \
+		   $(PLATOBJ) $(UIOBJ) $(D2DOBJ) $(FSYNTHOBJ) $(MUNTOBJ) \
 		   $(DEVBROBJ)
 ifdef EXOBJ
 OBJ		+= $(EXOBJ)

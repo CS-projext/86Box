@@ -163,6 +163,15 @@ FILE* plat_fopen(wchar_t* path, wchar_t* mode) {
   return result;
 }
 
+FILE* plat_fopen64(const wchar_t* path, const wchar_t* mode) {
+  char* path_c = malloc_wcstombs(path);
+  char* mode_c = malloc_wcstombs(mode);
+  FILE* result = fopen(path_c, mode_c);
+  free(path_c);
+  free(mode_c);
+  return result;
+}
+
 void plat_remove(wchar_t* path) {
   char* path_c = malloc_wcstombs(path);
   remove(path_c);
@@ -180,6 +189,21 @@ void plat_path_slash(wchar_t *path) {
 int plat_path_abs(wchar_t *path) {
     if (path[0] == L'/') return 1;
     return 0;
+}
+
+void plat_get_dirname(wchar_t* dest, const wchar_t* path) {
+    int c = wcslen(path) - 1;
+    wchar_t* ptr = (wchar_t*) path;
+    while (c > 0) {
+      if(path[c] == L'/') {
+        ptr = (wchar_t *)&path[c];
+        break;
+      }
+      c--;
+    }
+
+    while(path < ptr) *dest++ = *path++;
+    *dest = L'\0';
 }
 
 wchar_t* plat_get_filename(wchar_t* s) {
